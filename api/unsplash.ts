@@ -1,15 +1,37 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { handleUnsplashRequest } from '../server/unsplash'
+import { handleUnsplashRequest } from './lib/unsplash'
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
+export const config = {
+  runtime: 'edge',
+}
+
+export default async function handler(request: Request): Promise<Response> {
+  try {
+    if (request.method !== 'POST') {
+      return Response.json({ error: 'Method not allowed' }, { status: 405 })
+    }
+
+    let body: unknown = {}
+    try {
+      body = await request.json()
+    } catch {
+      return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
+    const env = {
+      UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY ?? '',
+    }
+
+    const result = await handleUnsplashRequest(
+      (body ?? {}) as Parameters<typeof handleUnsplashRequest>[0],
+      env,
+    )
+    return Response.json(result.data, { status: result.status })
+  } catch (err) {
+    return Response.json(
+      {
+        error: err instanceof Error ? err.message : 'Unsplash API failed',
+      },
+      { status: 500 },
+    )
   }
-
-  const env = {
-    UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY ?? '',
-  }
-
-  const result = await handleUnsplashRequest(req.body ?? {}, env)
-  return res.status(result.status).json(result.data)
 }

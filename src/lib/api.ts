@@ -1,5 +1,20 @@
 import type { StoryGenerationResult, UnsplashMeta } from './types'
 
+async function readApiJson(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text()
+  if (!text) {
+    throw new Error(res.ok ? 'Empty API response' : `API error ${res.status}`)
+  }
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    const snippet = text.slice(0, 120).replace(/\s+/g, ' ')
+    throw new Error(
+      `API returned non-JSON (${res.status}): ${snippet}`,
+    )
+  }
+}
+
 export async function generateStory(payload: {
   tripTitle: string
   country: string
@@ -28,9 +43,9 @@ export async function generateStory(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'story', ...payload }),
   })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? 'Failed to generate story')
-  return data as StoryGenerationResult
+  const data = await readApiJson(res)
+  if (!res.ok) throw new Error(String(data.error ?? 'Failed to generate story'))
+  return data as unknown as StoryGenerationResult
 }
 
 export async function generateCaption(payload: {
@@ -50,9 +65,9 @@ export async function generateCaption(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'caption', ...payload }),
   })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? 'Failed to generate caption')
-  return data.caption as string
+  const data = await readApiJson(res)
+  if (!res.ok) throw new Error(String(data.error ?? 'Failed to generate caption'))
+  return String(data.caption ?? '')
 }
 
 export interface UnsplashPhoto {
@@ -94,8 +109,8 @@ export async function searchUnsplash(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'search', query, perPage }),
   })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? 'Failed to search Unsplash')
+  const data = await readApiJson(res)
+  if (!res.ok) throw new Error(String(data.error ?? 'Failed to search Unsplash'))
   return (data.photos ?? []) as UnsplashPhoto[]
 }
 
@@ -105,8 +120,8 @@ export async function getUnsplashPhoto(id: string): Promise<UnsplashPhotoDetail>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'detail', id }),
   })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? 'Failed to load Unsplash photo')
+  const data = await readApiJson(res)
+  if (!res.ok) throw new Error(String(data.error ?? 'Failed to load Unsplash photo'))
   return data.photo as UnsplashPhotoDetail
 }
 
@@ -120,7 +135,7 @@ export async function trackUnsplashDownload(
     body: JSON.stringify({ action: 'track-download', downloadLocation }),
   })
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
+    const data = await readApiJson(res).catch(() => ({ error: res.status }))
     console.warn('Unsplash download track failed:', data.error ?? res.status)
   }
 }

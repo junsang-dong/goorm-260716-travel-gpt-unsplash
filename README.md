@@ -59,6 +59,7 @@
 | Vite에서 Leaflet 기본 마커 아이콘 깨짐 | 번들된 marker PNG로 `L.icon` 설정 |
 | 랜딩 히어로가 일반 스톡 이미지 | Chris Lawton 사진 + Unsplash 크레딧으로 교체 |
 | API 키 클라이언트 노출 위험 | Serverless / Vite 미들웨어에서만 키 로드 |
+| Vercel 배포 후 `Unexpected token 'A'... is not valid JSON` | Node ESM/`type:module`과 `@vercel/node` 부팅 충돌 → **Edge Runtime**으로 전환, 핸들러를 `api/lib`로 통합, 클라이언트 JSON 파싱 보강 |
 | `.env` 시크릿 커밋 위험 | `.gitignore`에 `.env` 제외, `.env.example`만 커밋 |
 
 ---
@@ -114,11 +115,16 @@ UNSPLASH_ACCESS_KEY=
    - `OPENAI_MODEL` — 선택 (기본 `gpt-4o`)
 5. **Deploy** 클릭
 
+### API가 실패할 때 (`A server error` / non-JSON)
+- `/api/story`, `/api/unsplash`는 **Vercel Edge Functions**입니다. 배포 후 Functions 탭에 두 함수가 보여야 합니다.
+- 환경 변수는 **Production**과 **Preview**에 각각 등록했는지 확인하세요. 저장 후 **Redeploy**가 필요합니다.
+- 키가 있어도 Functions가 옛 빌드로 돌면 실패합니다 → Deployments → 최신 커밋 **Redeploy**.
+
 ### 동작 확인 포인트
 - `/` 랜딩·여행 생성
-- `/api/story`, `/api/unsplash`가 404가 아닌지 (Serverless Functions)
+- `/api/story`, `/api/unsplash`가 404가 아닌지 (Edge Functions)
 - SPA 직접 URL (`/trips/...`) 새로고침 시 404가 아닌지 (`vercel.json` rewrite)
-- AI·Unsplash 호출 시 키 오류가 없는지 (Vercel 프로젝트 → Settings → Environment Variables)
+- AI·Unsplash 호출 시 키 오류가 없는지 (Settings → Environment Variables)
 
 ### CLI로 배포하는 경우 (선택)
 
