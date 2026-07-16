@@ -77,6 +77,7 @@ export async function createTrip(input: CreateTripInput): Promise<Trip> {
     endDate: input.endDate,
     coverImageUrl: input.coverImageUrl ?? null,
     summary: input.summary ?? '',
+    unsplashMeta: input.unsplashMeta ?? null,
     createdAt: new Date().toISOString(),
   }
   await db.put('trips', trip)
@@ -181,6 +182,7 @@ export async function upsertStory(
     heroImageUrl: input.heroImageUrl,
     snsSummary: input.snsSummary,
     hashtags: input.hashtags,
+    unsplashMeta: input.unsplashMeta ?? existing?.unsplashMeta ?? null,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   }

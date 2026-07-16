@@ -13,13 +13,15 @@ import {
   updateTrip,
 } from '@/lib/db'
 import { createThumbnail, parseExif, tripDayNumber } from '@/lib/exif'
-import { searchUnsplash } from '@/lib/api'
+import { detailToUnsplashMeta } from '@/lib/api'
 import { formatDateRange, tripDurationNights } from '@/lib/hooks'
 import type { Location, Photo, Story, Trip } from '@/lib/types'
 import { PhotoDropzone } from '@/components/PhotoDropzone'
 import { PhotoGrid } from '@/components/PhotoGrid'
 import { TimelineView } from '@/components/TimelineView'
-import { MapMock } from '@/components/MapMock'
+import { TripMap } from '@/components/TripMap'
+import { UnsplashPicker } from '@/components/UnsplashPicker'
+import type { UnsplashPhotoDetail } from '@/lib/api'
 
 export function TripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>()
@@ -31,7 +33,7 @@ export function TripDetailPage() {
   const [tab, setTab] = useState<'overview' | 'photos' | 'timeline' | 'map'>(
     'overview',
   )
-  const [heroBusy, setHeroBusy] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [heroError, setHeroError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
@@ -99,25 +101,24 @@ export function TripDetailPage() {
     [tripId, trip, reload],
   )
 
-  async function applyUnsplashHero() {
-    if (!trip || !tripId) return
-    setHeroBusy(true)
+  async function applyUnsplashHero(detail: UnsplashPhotoDetail) {
+    if (!tripId) return
     setHeroError(null)
     try {
-      const query = [trip.city, trip.country, 'travel photography']
-        .filter(Boolean)
-        .join(' ')
-      const photosFound = await searchUnsplash(query, 1)
-      const first = photosFound[0]
-      if (!first) throw new Error('Unsplash에서 이미지를 찾지 못했습니다.')
-      await updateTrip(tripId, { coverImageUrl: first.url })
+      await updateTrip(tripId, {
+        coverImageUrl: detail.url,
+        unsplashMeta: detailToUnsplashMeta(detail),
+      })
       await reload()
     } catch (err) {
       setHeroError(err instanceof Error ? err.message : 'Hero 적용 실패')
-    } finally {
-      setHeroBusy(false)
+      throw err
     }
   }
+
+  const unsplashQuery = [trip?.city, trip?.country, 'travel photography']
+    .filter(Boolean)
+    .join(' ')
 
   async function handleDelete() {
     if (!tripId) return
@@ -173,11 +174,10 @@ export function TripDetailPage() {
           <div className="mt-5 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => void applyUnsplashHero()}
-              disabled={heroBusy}
-              className="rounded-full bg-paper/95 px-4 py-2 text-sm font-medium text-sea-deep hover:bg-paper disabled:opacity-60"
+              onClick={() => setPickerOpen(true)}
+              className="rounded-full bg-paper/95 px-4 py-2 text-sm font-medium text-sea-deep hover:bg-paper"
             >
-              {heroBusy ? 'Unsplash 검색 중…' : 'Unsplash Hero 적용'}
+              Unsplash Hero 선택
             </button>
             <Link
               to={`/trips/${trip.id}/story/1`}
@@ -193,6 +193,14 @@ export function TripDetailPage() {
               삭제
             </button>
           </div>
+          {trip.unsplashMeta?.photographer ? (
+            <p className="mt-3 text-xs text-paper/75">
+              Cover photo by {trip.unsplashMeta.photographer} on Unsplash
+              {trip.unsplashMeta.tags?.length
+                ? ` · ${trip.unsplashMeta.tags.slice(0, 4).join(', ')}`
+                : ''}
+            </p>
+          ) : null}
           {heroError ? (
             <p className="mt-3 text-sm text-coral">{heroError}</p>
           ) : null}
@@ -268,9 +276,16 @@ export function TripDetailPage() {
         ) : null}
 
         {tab === 'map' ? (
-          <MapMock locations={locations} photos={photos} />
+          <TripMap locations={locations} photos={photos} />
         ) : null}
       </div>
+
+      <UnsplashPicker
+        open={pickerOpen}
+        initialQuery={unsplashQuery}
+        onClose={() => setPickerOpen(false)}
+        onApply={applyUnsplashHero}
+      />
     </div>
   )
 }

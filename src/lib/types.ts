@@ -7,6 +7,21 @@ export type Mood =
   | 'Luxury'
   | 'Backpacking'
 
+export interface UnsplashMeta {
+  id: string
+  description: string | null
+  location: {
+    name?: string | null
+    city?: string | null
+    country?: string | null
+    lat?: number | null
+    lng?: number | null
+  } | null
+  tags: string[]
+  exif: { make?: string | null; model?: string | null } | null
+  photographer: string
+}
+
 export interface Trip {
   id: string
   title: string
@@ -16,6 +31,7 @@ export interface Trip {
   endDate: string
   coverImageUrl: string | null
   summary: string
+  unsplashMeta: UnsplashMeta | null
   createdAt: string
 }
 
@@ -43,6 +59,7 @@ export interface Story {
   heroImageUrl: string | null
   snsSummary: string | null
   hashtags: string[]
+  unsplashMeta: UnsplashMeta | null
   createdAt: string
   updatedAt: string
 }
@@ -66,7 +83,11 @@ export interface StoryGenerationResult {
   unsplashKeywords: string
 }
 
-export type CreateTripInput = Omit<Trip, 'id' | 'createdAt' | 'coverImageUrl' | 'summary'> & {
+export type CreateTripInput = Omit<
+  Trip,
+  'id' | 'createdAt' | 'coverImageUrl' | 'summary' | 'unsplashMeta'
+> & {
   coverImageUrl?: string | null
   summary?: string
+  unsplashMeta?: UnsplashMeta | null
 }

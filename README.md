@@ -9,52 +9,42 @@
 
 ## 이번 작업 주요 내용
 
-### 1. 웹 MVP 스캐폴딩
+### 1. 웹 MVP 기반
 - React 19 + Vite + TypeScript + Tailwind CSS v4 + React Router + Framer Motion
-- Polarsteps 감성의 미니멀 UI (Fraunces / Source Sans 3, 풀블리드 히어로)
-- Electron / Tauri는 다음 단계로 보류, **웹 우선**으로 구현
+- IndexedDB (`trips` / `photos` / `stories` / `locations`) — 로그인·동기화 없음
+- Electron / Tauri는 다음 단계
 
-### 2. IndexedDB 로컬 저장
-- `trips` / `photos` / `stories` / `locations` 스토어
-- 사진 Blob·썸네일 저장, 새로고침 후에도 유지
-- 로그인·클라우드 동기화 없음 (브라우저 로컬 전용)
+### 2. 새 여행 입력 UX
+- 필드: 여행 제목 · 간단한 설명글 · 국가 또는 도시 · 여행 날짜
+- **예시로 시작하기** 3종 (리스본 트램 / 오사카 밤 / 스위스 시장)
 
-### 3. 화면
+### 3. Unsplash 상세 연동 + 사진 선택
+- `/api/unsplash` 액션: `search` / `detail` (`GET /photos/:id`) / `track-download`
+- `UnsplashPicker`: 검색 그리드 → 선택 시 위치·태그·설명·EXIF 미리보기 → 적용
+- Trip Detail **Unsplash Hero 선택**, Story Editor **Hero 사진 고르기**
+- `unsplashMeta`를 Trip/Story에 저장 (IndexedDB)
+
+### 4. AI 프롬프트 주입
+- `/api/story`에 `unsplashContext`(description, location, tags, camera, photographer) 전달
+- 여행기·캡션 생성 시 Unsplash 메타데이터를 문맥으로 사용
+
+### 5. React-Leaflet GPS 지도
+- Map mock → **OpenStreetMap** (`leaflet` + `react-leaflet`)
+- 업로드 사진 EXIF GPS → `locations` → Marker / Popup / fitBounds
+- 하단 핀 리스트 클릭 시 `flyTo`
+- `locations` 없으면 사진의 lat/lng로 폴백
+
+### 6. 랜딩 히어로
+- Chris Lawton Unsplash 사진 배경 (`public/images/hero-chris-lawton.jpg`)
+- 하단 작가 크레딧 링크 표시
+
+### 화면 경로
+
 | 경로 | 설명 |
 |------|------|
 | `/` | 여행 목록 · 새 여행 생성 |
-| `/trips/:id` | Overview / Photos / Timeline / Map mock |
-| `/trips/:id/story/:day` | AI 여행기 생성·편집 · 캡션 |
-
-### 4. 사진 업로드 & EXIF
-- JPG / PNG / WebP 드래그 앤 드롭
-- `exifr`로 GPS · 촬영일 · 카메라 메타데이터 추출
-- GPS가 있으면 Map mock 핀으로 표시
-
-### 5. AI · Unsplash API
-- `/api/story` — OpenAI로 하루 여행기 · 제목 · 무드 · SNS 요약 · 해시태그 · 캡션
-- `/api/unsplash` — Hero / 커버 이미지 검색
-- API 키는 `.env`에만 두고 서버 측에서만 사용 (클라이언트 미노출)
-- Vite 개발 서버 미들웨어로 로컬에서도 `/api/*` 동일 경로 사용
-
-### 6. 새 여행 입력 UX 개선
-입력 항목을 아래처럼 단순화했습니다.
-- 여행 제목
-- 여행에 대한 간단한 설명글
-- 국가 또는 도시
-- 여행 날짜
-
-**예시로 시작하기** 버튼 3개:
-1. 해 질 무렵 리스본의 트램
-2. 오사카의 밤 거리
-3. 스위스 전통 시장
-
-예시 선택 시 제목·설명·장소·날짜가 폼에 자동 채워집니다.  
-장소 문자열(`Portugal · Lisbon`)은 파싱해 `country` / `city`로 저장하고, 설명글은 `summary`로 저장합니다.
-
-### 7. 배포 준비
-- `vercel.json` SPA rewrite (`/api` 제외)
-- `.env.example` · 로컬 실행 가이드
+| `/trips/:id` | Overview / Photos / Timeline / Map (OSM) |
+| `/trips/:id/story/:day` | AI 여행기 · Hero 선택 · 캡션 |
 
 ---
 
@@ -62,14 +52,14 @@
 
 | 이슈 | 조치 |
 |------|------|
-| 비어 있지 않은 디렉터리에서 `create-vite` 취소 | 임시 폴더에 생성 후 루트로 복사해 스캐폴딩 |
-| TypeScript 6 `baseUrl` deprecation으로 빌드 실패 | `ignoreDeprecations: "6.0"` 추가 |
-| `exifr` 옵션 타입 불일치 (`ifd0: boolean`) | 불필요 옵션 제거, `gps` + `pick`만 사용 |
-| Vercel용 SQLite/`better-sqlite3` 비호환 | 웹 MVP는 IndexedDB로 대체 |
-| Vite `--host` 시 `uv_interface_addresses` 시스템 오류 | localhost(`--port 5173`)로 실행 |
+| Unsplash 검색만으로는 location/tags 부족 | `GET /photos/:id` detail 연동, 선택 시에만 호출해 rate limit 절약 |
+| Hero 자동 1장 적용으로 선택권 부족 | `UnsplashPicker`로 다중 후보 선택 UI 도입 |
+| AI가 Unsplash 맥락을 모름 | `unsplashContext`를 스토리/캡션 프롬프트에 주입 |
+| Map mock으로 실제 위치 확인 불가 | React-Leaflet + OSM Marker로 교체 |
+| Vite에서 Leaflet 기본 마커 아이콘 깨짐 | 번들된 marker PNG로 `L.icon` 설정 |
+| 랜딩 히어로가 일반 스톡 이미지 | Chris Lawton 사진 + Unsplash 크레딧으로 교체 |
 | API 키 클라이언트 노출 위험 | Serverless / Vite 미들웨어에서만 키 로드 |
-| 새 여행 폼의 국가·도시·시작·종료일 분산 | 단일 장소·단일 날짜 + 설명글 필드로 통합 |
-| Object URL / 업로드 커버 ephemeral 이슈 | 커버는 Unsplash URL 우선, 로컬 Blob URL 커버 저장 제거 |
+| `.env` 시크릿 커밋 위험 | `.gitignore`에 `.env` 제외, `.env.example`만 커밋 |
 
 ---
 
@@ -79,7 +69,7 @@
 - Tailwind CSS v4 + Framer Motion + React Router
 - IndexedDB (`idb`) + EXIF (`exifr`)
 - Vercel Serverless (`/api/story`, `/api/unsplash`)
-- 지도: 목업 (Mapbox 미연동)
+- 지도: **React-Leaflet + OpenStreetMap**
 
 ---
 
@@ -93,9 +83,7 @@ npm install
 npm run dev
 ```
 
-브라우저에서 http://localhost:5173 을 엽니다.
-
-Vite 개발 서버가 `/api/*`를 같은 프로세스로 처리하므로 `vercel dev` 없이도 API를 검증할 수 있습니다.
+브라우저: http://localhost:5173
 
 ### 환경 변수
 
@@ -105,21 +93,53 @@ OPENAI_MODEL=gpt-4o
 UNSPLASH_ACCESS_KEY=
 ```
 
-> `.env`는 Git에 커밋되지 않습니다. 키는 로컬·Vercel 대시보드에만 등록하세요.
+> `.env`는 Git에 커밋되지 않습니다.
 
 ---
 
-## Vercel 배포
+## Vercel 배포 가이드
 
-1. GitHub 리포지토리 Import
-2. Framework Preset: **Vite**
-3. Environment Variables 등록: `OPENAI_API_KEY`, `OPENAI_MODEL`(선택), `UNSPLASH_ACCESS_KEY`
-4. Deploy
+### 사전 준비
+1. 코드가 GitHub에 푸시되어 있어야 합니다 (이 리포지토리).
+2. [Vercel](https://vercel.com) 계정으로 로그인 (GitHub 연동 권장).
+3. OpenAI / Unsplash API 키를 준비합니다.
+
+### 배포 절차
+1. [vercel.com/new](https://vercel.com/new) → **Import** `junsang-dong/goorm-260716-travel-gpt-unsplash`
+2. Framework Preset: **Vite** (자동 감지되는 경우가 많음)
+3. Build Command: `npm run build` / Output Directory: `dist` (기본값 유지)
+4. **Environment Variables**에 등록 (Production / Preview 모두 권장):
+   - `OPENAI_API_KEY` — 필수
+   - `UNSPLASH_ACCESS_KEY` — 필수
+   - `OPENAI_MODEL` — 선택 (기본 `gpt-4o`)
+5. **Deploy** 클릭
+
+### 동작 확인 포인트
+- `/` 랜딩·여행 생성
+- `/api/story`, `/api/unsplash`가 404가 아닌지 (Serverless Functions)
+- SPA 직접 URL (`/trips/...`) 새로고침 시 404가 아닌지 (`vercel.json` rewrite)
+- AI·Unsplash 호출 시 키 오류가 없는지 (Vercel 프로젝트 → Settings → Environment Variables)
+
+### CLI로 배포하는 경우 (선택)
+
+```bash
+npm i -g vercel
+vercel login
+vercel          # Preview
+vercel --prod   # Production
+```
+
+환경 변수는 대시보드에 넣거나 `vercel env add`로 등록합니다.
+
+### 참고
+- 여행·사진 데이터는 **각 사용자 브라우저 IndexedDB**에만 저장됩니다 (서버 DB 없음).
+- Unsplash Demo 모드 rate limit: 시간당 약 50회 — Production 승인 시 상향.
+- 이미지 URL은 Unsplash 가이드에 따라 hotlink + 적용 시 download track을 사용합니다.
 
 ---
 
 ## MVP 범위 / 다음 단계
 
-**포함:** 여행 CRUD, 사진 업로드·EXIF, AI 여행기·캡션, Unsplash Hero, 타임라인, 지도 목업  
+**포함:** 여행 CRUD, 사진 업로드·EXIF, AI 여행기·캡션, Unsplash Hero 선택·메타 주입, 타임라인, OSM GPS 지도  
 
-**다음 단계:** Electron/Tauri, SQLite, 실지도 SDK, HEIC/RAW, 자연어 검색, PDF/eBook, 로그인·동기화
+**다음 단계:** Electron/Tauri, SQLite, Mapbox, HEIC/RAW, 자연어 검색, PDF/eBook, 로그인·동기화, 날씨 API

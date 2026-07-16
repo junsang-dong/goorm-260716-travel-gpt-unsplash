@@ -10,10 +10,17 @@ import {
   upsertStory,
 } from '@/lib/db'
 import { tripDayNumber } from '@/lib/exif'
-import { generateCaption, generateStory, searchUnsplash } from '@/lib/api'
-import type { Photo, Story, Trip } from '@/lib/types'
+import {
+  detailToUnsplashMeta,
+  generateCaption,
+  generateStory,
+  unsplashMetaToContext,
+  type UnsplashPhotoDetail,
+} from '@/lib/api'
+import type { Photo, Story, Trip, UnsplashMeta } from '@/lib/types'
 import { useObjectUrl } from '@/lib/hooks'
 import { PhotoGrid } from '@/components/PhotoGrid'
+import { UnsplashPicker } from '@/components/UnsplashPicker'
 
 export function StoryEditorPage() {
   const { tripId, day: dayParam } = useParams<{ tripId: string; day: string }>()
@@ -28,6 +35,9 @@ export function StoryEditorPage() {
   const [snsSummary, setSnsSummary] = useState('')
   const [hashtags, setHashtags] = useState<string[]>([])
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null)
+  const [unsplashMeta, setUnsplashMeta] = useState<UnsplashMeta | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerQuery, setPickerQuery] = useState('')
   const [memo, setMemo] = useState('')
   const [busy, setBusy] = useState(false)
   const [captionBusy, setCaptionBusy] = useState(false)
@@ -51,6 +61,7 @@ export function StoryEditorPage() {
       setSnsSummary(s.snsSummary ?? '')
       setHashtags(s.hashtags ?? [])
       setHeroImageUrl(s.heroImageUrl)
+      setUnsplashMeta(s.unsplashMeta ?? null)
     } else {
       setTitle('')
       setContent('')
@@ -58,6 +69,10 @@ export function StoryEditorPage() {
       setSnsSummary('')
       setHashtags([])
       setHeroImageUrl(null)
+      setUnsplashMeta(t?.unsplashMeta ?? null)
+      if (t?.coverImageUrl && !s) {
+        setHeroImageUrl(t.coverImageUrl)
+      }
     }
   }, [tripId, day])
 
@@ -97,6 +112,9 @@ export function StoryEditorPage() {
           caption: p.aiCaption,
         })),
         userMemo: memo,
+        unsplashContext: unsplashMetaToContext(
+          unsplashMeta ?? trip.unsplashMeta,
+        ),
       })
 
       setTitle(result.title)
@@ -105,17 +123,6 @@ export function StoryEditorPage() {
       setSnsSummary(result.snsSummary)
       setHashtags(result.hashtags)
 
-      let hero = heroImageUrl
-      try {
-        const unsplash = await searchUnsplash(result.unsplashKeywords, 1)
-        if (unsplash[0]) {
-          hero = unsplash[0].url
-          setHeroImageUrl(hero)
-        }
-      } catch {
-        // Unsplash optional for story generation
-      }
-
       const saved = await upsertStory({
         id: story?.id,
         tripId,
@@ -123,20 +130,26 @@ export function StoryEditorPage() {
         title: result.title,
         content: result.content,
         mood: result.mood,
-        heroImageUrl: hero,
+        heroImageUrl,
         snsSummary: result.snsSummary,
         hashtags: result.hashtags,
+        unsplashMeta: unsplashMeta ?? trip.unsplashMeta ?? null,
       })
       setStory(saved)
 
       if (!trip.summary && result.snsSummary) {
         await updateTrip(tripId, { summary: result.snsSummary })
       }
-      if (!trip.coverImageUrl && hero) {
-        await updateTrip(tripId, { coverImageUrl: hero })
-      }
 
-      setMessage('AI 여행기가 생성되어 저장되었습니다.')
+      if (!heroImageUrl && result.unsplashKeywords) {
+        setPickerQuery(result.unsplashKeywords)
+        setPickerOpen(true)
+        setMessage(
+          'AI 여행기가 저장되었습니다. Unsplash에서 Hero 사진을 골라 주세요.',
+        )
+      } else {
+        setMessage('AI 여행기가 생성되어 저장되었습니다.')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '생성 실패')
     } finally {
@@ -159,6 +172,7 @@ export function StoryEditorPage() {
         heroImageUrl,
         snsSummary,
         hashtags,
+        unsplashMeta,
       })
       setStory(saved)
       setMessage('저장되었습니다.')
@@ -169,11 +183,39 @@ export function StoryEditorPage() {
     }
   }
 
+  async function applyHero(detail: UnsplashPhotoDetail) {
+    if (!tripId) return
+    const meta = detailToUnsplashMeta(detail)
+    setHeroImageUrl(detail.url)
+    setUnsplashMeta(meta)
+    const saved = await upsertStory({
+      id: story?.id,
+      tripId,
+      day,
+      title: title || `Day ${day}`,
+      content,
+      mood,
+      heroImageUrl: detail.url,
+      snsSummary,
+      hashtags,
+      unsplashMeta: meta,
+    })
+    setStory(saved)
+    if (trip && !trip.coverImageUrl) {
+      await updateTrip(tripId, {
+        coverImageUrl: detail.url,
+        unsplashMeta: meta,
+      })
+    }
+    setMessage('Unsplash Hero가 적용되었습니다.')
+  }
+
   async function handleCaptions() {
     if (!trip || dayPhotos.length === 0) return
     setCaptionBusy(true)
     setError(null)
     try {
+      const ctx = unsplashMetaToContext(unsplashMeta ?? trip.unsplashMeta)
       for (const photo of dayPhotos) {
         const caption = await generateCaption({
           imageDescription: [
@@ -189,6 +231,7 @@ export function StoryEditorPage() {
             .join(' · '),
           city: trip.city,
           country: trip.country,
+          unsplashContext: ctx,
         })
         await updatePhoto(photo.id, { aiCaption: caption })
       }
@@ -278,6 +321,20 @@ export function StoryEditorPage() {
           </button>
           <button
             type="button"
+            onClick={() => {
+              setPickerQuery(
+                [trip.city, trip.country, 'travel photography']
+                  .filter(Boolean)
+                  .join(' '),
+              )
+              setPickerOpen(true)
+            }}
+            className="rounded-full border border-sea/30 px-5 py-2.5 text-sm font-medium text-sea-deep"
+          >
+            Hero 사진 고르기
+          </button>
+          <button
+            type="button"
             onClick={() => void handleCaptions()}
             disabled={captionBusy || dayPhotos.length === 0}
             className="rounded-full border border-sea/30 px-5 py-2.5 text-sm font-medium text-sea-deep disabled:opacity-60"
@@ -285,6 +342,15 @@ export function StoryEditorPage() {
             {captionBusy ? '캡션 생성 중…' : '사진 캡션 생성'}
           </button>
         </div>
+
+        {unsplashMeta ? (
+          <p className="text-sm text-ink-muted">
+            Unsplash · {unsplashMeta.photographer}
+            {unsplashMeta.tags.length > 0
+              ? ` · ${unsplashMeta.tags.slice(0, 6).join(', ')}`
+              : ''}
+          </p>
+        ) : null}
 
         {message ? (
           <p className="rounded-xl bg-mist/50 px-4 py-3 text-sm text-sea-deep">
@@ -335,6 +401,16 @@ export function StoryEditorPage() {
           <PhotoGrid photos={dayPhotos.length > 0 ? dayPhotos : photos.slice(0, 6)} />
         </div>
       </div>
+
+      <UnsplashPicker
+        open={pickerOpen}
+        initialQuery={
+          pickerQuery ||
+          [trip.city, trip.country, 'travel photography'].filter(Boolean).join(' ')
+        }
+        onClose={() => setPickerOpen(false)}
+        onApply={applyHero}
+      />
     </article>
   )
 }

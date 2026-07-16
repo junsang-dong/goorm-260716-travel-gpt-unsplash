@@ -67,7 +67,7 @@ export function HomePage() {
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage:
-              'linear-gradient(120deg, rgba(22,57,68,.88), rgba(31,78,95,.55)), url(https://images.unsplash.com/photo-1488646953017-aa797bffe247?auto=format&fit=crop&w=1800&q=80)',
+              'linear-gradient(120deg, rgba(22,57,68,.72), rgba(28,25,23,.45)), url(/images/hero-chris-lawton.jpg)',
           }}
         />
         <div className="relative mx-auto flex min-h-[72dvh] max-w-6xl flex-col justify-end px-5 pb-16 pt-24">
@@ -108,6 +108,26 @@ export function HomePage() {
               새 여행 시작하기
             </button>
           </motion.div>
+          <p className="mt-10 text-xs text-paper/70">
+            Photo by{' '}
+            <a
+              href="https://unsplash.com/@chrislawton?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText"
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-paper/40 underline-offset-2 hover:text-paper"
+            >
+              Chris Lawton
+            </a>{' '}
+            on{' '}
+            <a
+              href="https://unsplash.com/photos/black-and-silver-slr-camera-on-table-duQ1ulzTJbM?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText"
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-paper/40 underline-offset-2 hover:text-paper"
+            >
+              Unsplash
+            </a>
+          </p>
         </div>
       </section>
 

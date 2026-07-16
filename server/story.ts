@@ -33,6 +33,13 @@ export interface StoryRequestBody {
   }>
   userMemo?: string
   imageDescription?: string
+  unsplashContext?: {
+    description?: string | null
+    location?: string | null
+    tags?: string[]
+    camera?: string | null
+    photographer?: string | null
+  }
 }
 
 function getModel(env: Record<string, string>) {
@@ -97,10 +104,19 @@ export async function handleStoryRequest(
     const action = body.action ?? 'story'
 
     if (action === 'caption') {
+      const ctx = body.unsplashContext
+      const extra = [
+        ctx?.description,
+        ctx?.location ? `Location: ${ctx.location}` : null,
+        ctx?.tags?.length ? `Tags: ${ctx.tags.join(', ')}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n')
+
       const result = (await chatJson(
         env,
         'You write poetic one-line photo captions for travel journals. Reply JSON only: {"caption":"..."}',
-        `Write one Korean caption for this travel photo.\nDescription/meta: ${body.imageDescription ?? 'travel photo'}\nLocation: ${body.city ?? ''} ${body.country ?? ''}`,
+        `Write one Korean caption for this travel photo.\nDescription/meta: ${body.imageDescription ?? 'travel photo'}\nLocation: ${body.city ?? ''} ${body.country ?? ''}\n${extra}`,
       )) as { caption?: string }
 
       return {
@@ -110,6 +126,7 @@ export async function handleStoryRequest(
     }
 
     const system = `You are an AI travel story writer. Write lyrical Korean travel journal prose.
+Use the Unsplash reference photo context (location, tags, description) when provided to enrich atmosphere and concrete details.
 Reply with JSON only:
 {
   "title": string,
@@ -120,6 +137,18 @@ Reply with JSON only:
   "unsplashKeywords": string (English keywords for travel photography search)
 }`
 
+    const ctx = body.unsplashContext
+    const unsplashBlock = ctx
+      ? [
+          'Unsplash reference photo:',
+          `- Description: ${ctx.description ?? 'n/a'}`,
+          `- Location: ${ctx.location ?? 'n/a'}`,
+          `- Tags: ${(ctx.tags ?? []).join(', ') || 'n/a'}`,
+          `- Camera: ${ctx.camera ?? 'n/a'}`,
+          `- Photographer: ${ctx.photographer ?? 'n/a'}`,
+        ].join('\n')
+      : 'Unsplash reference photo: none'
+
     const user = [
       `Trip: ${body.tripTitle ?? 'Untitled'}`,
       `Place: ${body.city ?? ''}, ${body.country ?? ''}`,
@@ -128,6 +157,7 @@ Reply with JSON only:
       `Locations: ${(body.locations ?? []).join(', ') || 'unknown'}`,
       `Photo metadata: ${JSON.stringify(body.photoMeta ?? [])}`,
       `User memo: ${body.userMemo ?? ''}`,
+      unsplashBlock,
     ].join('\n')
 
     const raw = (await chatJson(env, system, user)) as Partial<StoryGenerationResult>
