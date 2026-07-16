@@ -1,5 +1,6 @@
-import { handleStoryRequest } from './lib/story'
-import { adminUnauthorized, verifyAdminCode } from './lib/admin'
+import { handleStoryRequest } from './lib/story.js'
+import { adminUnauthorized, verifyAdminCode } from './lib/admin.js'
+import { readEnv } from './lib/env.js'
 
 export const config = {
   runtime: 'edge',
@@ -19,9 +20,9 @@ export default async function handler(request: Request): Promise<Response> {
     }
 
     const env = {
-      OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? '',
-      OPENAI_MODEL: process.env.OPENAI_MODEL ?? 'gpt-4o',
-      ADMIN_CODE: process.env.ADMIN_CODE ?? '',
+      OPENAI_API_KEY: readEnv('OPENAI_API_KEY'),
+      OPENAI_MODEL: readEnv('OPENAI_MODEL') || 'gpt-4o',
+      ADMIN_CODE: readEnv('ADMIN_CODE'),
     }
 
     const adminCode =

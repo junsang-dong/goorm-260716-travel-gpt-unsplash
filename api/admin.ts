@@ -1,4 +1,5 @@
-import { verifyAdminCode } from './lib/admin'
+import { verifyAdminCode } from './lib/admin.js'
+import { readEnv } from './lib/env.js'
 
 export const config = {
   runtime: 'edge',
@@ -18,7 +19,7 @@ export default async function handler(request: Request): Promise<Response> {
     }
 
     const env = {
-      ADMIN_CODE: process.env.ADMIN_CODE ?? '',
+      ADMIN_CODE: readEnv('ADMIN_CODE'),
     }
 
     if (!env.ADMIN_CODE) {
@@ -29,7 +30,10 @@ export default async function handler(request: Request): Promise<Response> {
     }
 
     if (!verifyAdminCode(body.code, env)) {
-      return Response.json({ ok: false, error: '관리자 코드가 올바르지 않습니다.' }, { status: 401 })
+      return Response.json(
+        { ok: false, error: '관리자 코드가 올바르지 않습니다.' },
+        { status: 401 },
+      )
     }
 
     return Response.json({ ok: true })

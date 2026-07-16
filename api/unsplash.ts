@@ -1,5 +1,6 @@
-import { handleUnsplashRequest } from './lib/unsplash'
-import { adminUnauthorized, verifyAdminCode } from './lib/admin'
+import { handleUnsplashRequest } from './lib/unsplash.js'
+import { adminUnauthorized, verifyAdminCode } from './lib/admin.js'
+import { readEnv } from './lib/env.js'
 
 export const config = {
   runtime: 'edge',
@@ -19,8 +20,8 @@ export default async function handler(request: Request): Promise<Response> {
     }
 
     const env = {
-      UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY ?? '',
-      ADMIN_CODE: process.env.ADMIN_CODE ?? '',
+      UNSPLASH_ACCESS_KEY: readEnv('UNSPLASH_ACCESS_KEY'),
+      ADMIN_CODE: readEnv('ADMIN_CODE'),
     }
 
     const adminCode =

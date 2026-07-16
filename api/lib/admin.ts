@@ -1,5 +1,5 @@
 export function getExpectedAdminCode(env: Record<string, string>): string {
-  return (env.ADMIN_CODE || process.env.ADMIN_CODE || '').trim()
+  return (env.ADMIN_CODE ?? '').trim()
 }
 
 export function verifyAdminCode(
