@@ -112,8 +112,14 @@ UNSPLASH_ACCESS_KEY=
 4. **Environment Variables**에 등록 (Production / Preview 모두 권장):
    - `OPENAI_API_KEY` — 필수
    - `UNSPLASH_ACCESS_KEY` — 필수
+   - `ADMIN_CODE` — 필수 (여행 글쓰기 관리자 코드)
    - `OPENAI_MODEL` — 선택 (기본 `gpt-4o`)
 5. **Deploy** 클릭
+
+### 관리자 글쓰기
+- 여행 생성·AI 작성·Unsplash·사진 업로드는 **관리자 코드** 인증 후에만 가능합니다.
+- 상단 **「글쓰기 인증」**에서 코드를 입력하세요. 세션(탭) 동안 유지되며 **Admin** 버튼으로 로그아웃합니다.
+- `/api/story`, `/api/unsplash`는 서버에서 `ADMIN_CODE`를 검증합니다.
 
 ### API가 실패할 때 (`A server error` / non-JSON)
 - `/api/story`, `/api/unsplash`는 **Vercel Edge Functions**입니다. 배포 후 Functions 탭에 두 함수가 보여야 합니다.

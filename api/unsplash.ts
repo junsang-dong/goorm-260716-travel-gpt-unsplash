@@ -1,4 +1,5 @@
 import { handleUnsplashRequest } from './lib/unsplash'
+import { adminUnauthorized, verifyAdminCode } from './lib/admin'
 
 export const config = {
   runtime: 'edge',
@@ -10,19 +11,29 @@ export default async function handler(request: Request): Promise<Response> {
       return Response.json({ error: 'Method not allowed' }, { status: 405 })
     }
 
-    let body: unknown = {}
+    let body: Record<string, unknown> = {}
     try {
-      body = await request.json()
+      body = (await request.json()) as Record<string, unknown>
     } catch {
       return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
     const env = {
       UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY ?? '',
+      ADMIN_CODE: process.env.ADMIN_CODE ?? '',
+    }
+
+    const adminCode =
+      request.headers.get('x-admin-code') ??
+      (typeof body.adminCode === 'string' ? body.adminCode : '')
+
+    if (!verifyAdminCode(adminCode, env)) {
+      const denied = adminUnauthorized()
+      return Response.json(denied.data, { status: denied.status })
     }
 
     const result = await handleUnsplashRequest(
-      (body ?? {}) as Parameters<typeof handleUnsplashRequest>[0],
+      body as Parameters<typeof handleUnsplashRequest>[0],
       env,
     )
     return Response.json(result.data, { status: result.status })

@@ -22,6 +22,7 @@ import { TimelineView } from '@/components/TimelineView'
 import { TripMap } from '@/components/TripMap'
 import { UnsplashPicker } from '@/components/UnsplashPicker'
 import type { UnsplashPhotoDetail } from '@/lib/api'
+import { useAdminGate } from '@/hooks/useAdminGate'
 
 export function TripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>()
@@ -35,6 +36,7 @@ export function TripDetailPage() {
   )
   const [pickerOpen, setPickerOpen] = useState(false)
   const [heroError, setHeroError] = useState<string | null>(null)
+  const { runOrAskAdmin, gateModal } = useAdminGate()
 
   const reload = useCallback(async () => {
     if (!tripId) return
@@ -174,7 +176,7 @@ export function TripDetailPage() {
           <div className="mt-5 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setPickerOpen(true)}
+              onClick={() => runOrAskAdmin(() => setPickerOpen(true))}
               className="rounded-full bg-paper/95 px-4 py-2 text-sm font-medium text-sea-deep hover:bg-paper"
             >
               Unsplash Hero 선택
@@ -187,7 +189,7 @@ export function TripDetailPage() {
             </Link>
             <button
               type="button"
-              onClick={() => void handleDelete()}
+              onClick={() => runOrAskAdmin(() => void handleDelete())}
               className="rounded-full px-4 py-2 text-sm text-paper/80 hover:bg-paper/10"
             >
               삭제
@@ -266,7 +268,13 @@ export function TripDetailPage() {
 
         {tab === 'photos' ? (
           <div className="space-y-6">
-            <PhotoDropzone onFiles={handleUpload} />
+            <PhotoDropzone
+              onFiles={(files) =>
+                runOrAskAdmin(() => {
+                  void handleUpload(files)
+                })
+              }
+            />
             <PhotoGrid photos={photos} />
           </div>
         ) : null}
@@ -286,6 +294,7 @@ export function TripDetailPage() {
         onClose={() => setPickerOpen(false)}
         onApply={applyUnsplashHero}
       />
+      {gateModal}
     </div>
   )
 }

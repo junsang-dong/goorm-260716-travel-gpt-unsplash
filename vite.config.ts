@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 import { handleStoryRequest } from './server/story'
 import { handleUnsplashRequest } from './server/unsplash'
+import { adminUnauthorized, verifyAdminCode } from './api/lib/admin'
 
 function apiDevPlugin(env: Record<string, string>): Plugin {
   return {
@@ -23,10 +24,41 @@ function apiDevPlugin(env: Record<string, string>): Plugin {
                 : {}
             let result: { status: number; data: unknown }
 
-            if (url.pathname === '/api/story') {
-              result = await handleStoryRequest(body, env)
+            const adminHeader = req.headers['x-admin-code']
+            const adminFromHeader = Array.isArray(adminHeader)
+              ? adminHeader[0]
+              : adminHeader
+            const adminCode =
+              adminFromHeader ??
+              (typeof body.adminCode === 'string' ? body.adminCode : '') ??
+              (typeof body.code === 'string' ? body.code : '')
+
+            if (url.pathname === '/api/admin') {
+              if (!env.ADMIN_CODE) {
+                result = {
+                  status: 500,
+                  data: { error: 'ADMIN_CODE is not configured on the server' },
+                }
+              } else if (!verifyAdminCode(adminCode || body.code, env)) {
+                result = {
+                  status: 401,
+                  data: { ok: false, error: '관리자 코드가 올바르지 않습니다.' },
+                }
+              } else {
+                result = { status: 200, data: { ok: true } }
+              }
+            } else if (url.pathname === '/api/story') {
+              if (!verifyAdminCode(adminCode, env)) {
+                result = adminUnauthorized()
+              } else {
+                result = await handleStoryRequest(body, env)
+              }
             } else if (url.pathname === '/api/unsplash') {
-              result = await handleUnsplashRequest(body, env)
+              if (!verifyAdminCode(adminCode, env)) {
+                result = adminUnauthorized()
+              } else {
+                result = await handleUnsplashRequest(body, env)
+              }
             } else {
               result = { status: 404, data: { error: 'Not found' } }
             }

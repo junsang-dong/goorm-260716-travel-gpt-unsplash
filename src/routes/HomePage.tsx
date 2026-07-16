@@ -9,6 +9,7 @@ import {
   type TripFormExample,
 } from '@/lib/tripExamples'
 import type { Trip } from '@/lib/types'
+import { useAdminGate } from '@/hooks/useAdminGate'
 
 const EMPTY_FORM = {
   title: '',
@@ -23,10 +24,15 @@ export function HomePage() {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const { runOrAskAdmin, gateModal } = useAdminGate()
 
   useEffect(() => {
     void listTrips().then(setTrips)
   }, [])
+
+  function openCreateForm() {
+    runOrAskAdmin(() => setOpen(true))
+  }
 
   function applyExample(example: TripFormExample) {
     setForm({
@@ -102,7 +108,7 @@ export function HomePage() {
           >
             <button
               type="button"
-              onClick={() => setOpen(true)}
+              onClick={openCreateForm}
               className="rounded-full bg-coral px-6 py-3 text-sm font-semibold text-paper shadow-lg transition hover:brightness-110"
             >
               새 여행 시작하기
@@ -139,7 +145,7 @@ export function HomePage() {
           </div>
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={openCreateForm}
             className="hidden rounded-full border border-sea/30 px-4 py-2 text-sm font-medium text-sea-deep hover:bg-sand sm:inline-flex"
           >
             + New
@@ -300,6 +306,7 @@ export function HomePage() {
           </form>
         </div>
       ) : null}
+      {gateModal}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import type { StoryGenerationResult, UnsplashMeta } from './types'
+import { adminHeaders } from '@/lib/admin'
 
 async function readApiJson(res: Response): Promise<Record<string, unknown>> {
   const text = await res.text()
@@ -12,6 +13,14 @@ async function readApiJson(res: Response): Promise<Record<string, unknown>> {
     throw new Error(
       `API returned non-JSON (${res.status}): ${snippet}`,
     )
+  }
+}
+
+function withAdminHeaders(extra?: HeadersInit): HeadersInit {
+  return {
+    'Content-Type': 'application/json',
+    ...adminHeaders(),
+    ...extra,
   }
 }
 
@@ -40,7 +49,7 @@ export async function generateStory(payload: {
 }): Promise<StoryGenerationResult> {
   const res = await fetch('/api/story', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withAdminHeaders(),
     body: JSON.stringify({ action: 'story', ...payload }),
   })
   const data = await readApiJson(res)
@@ -62,7 +71,7 @@ export async function generateCaption(payload: {
 }): Promise<string> {
   const res = await fetch('/api/story', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withAdminHeaders(),
     body: JSON.stringify({ action: 'caption', ...payload }),
   })
   const data = await readApiJson(res)
@@ -106,7 +115,7 @@ export async function searchUnsplash(
 ): Promise<UnsplashPhoto[]> {
   const res = await fetch('/api/unsplash', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withAdminHeaders(),
     body: JSON.stringify({ action: 'search', query, perPage }),
   })
   const data = await readApiJson(res)
@@ -117,7 +126,7 @@ export async function searchUnsplash(
 export async function getUnsplashPhoto(id: string): Promise<UnsplashPhotoDetail> {
   const res = await fetch('/api/unsplash', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withAdminHeaders(),
     body: JSON.stringify({ action: 'detail', id }),
   })
   const data = await readApiJson(res)
@@ -131,7 +140,7 @@ export async function trackUnsplashDownload(
   if (!downloadLocation) return
   const res = await fetch('/api/unsplash', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withAdminHeaders(),
     body: JSON.stringify({ action: 'track-download', downloadLocation }),
   })
   if (!res.ok) {

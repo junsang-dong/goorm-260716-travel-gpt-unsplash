@@ -21,6 +21,7 @@ import type { Photo, Story, Trip, UnsplashMeta } from '@/lib/types'
 import { useObjectUrl } from '@/lib/hooks'
 import { PhotoGrid } from '@/components/PhotoGrid'
 import { UnsplashPicker } from '@/components/UnsplashPicker'
+import { useAdminGate } from '@/hooks/useAdminGate'
 
 export function StoryEditorPage() {
   const { tripId, day: dayParam } = useParams<{ tripId: string; day: string }>()
@@ -43,6 +44,7 @@ export function StoryEditorPage() {
   const [captionBusy, setCaptionBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { isAdmin, runOrAskAdmin, gateModal } = useAdminGate()
 
   const load = useCallback(async () => {
     if (!tripId) return
@@ -305,7 +307,7 @@ export function StoryEditorPage() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => void handleGenerate()}
+            onClick={() => runOrAskAdmin(() => void handleGenerate())}
             disabled={busy}
             className="rounded-full bg-coral px-5 py-2.5 text-sm font-semibold text-paper disabled:opacity-60"
           >
@@ -313,7 +315,7 @@ export function StoryEditorPage() {
           </button>
           <button
             type="button"
-            onClick={() => void handleSave()}
+            onClick={() => runOrAskAdmin(() => void handleSave())}
             disabled={busy}
             className="rounded-full bg-sea px-5 py-2.5 text-sm font-medium text-paper disabled:opacity-60"
           >
@@ -321,27 +323,36 @@ export function StoryEditorPage() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setPickerQuery(
-                [trip.city, trip.country, 'travel photography']
-                  .filter(Boolean)
-                  .join(' '),
-              )
-              setPickerOpen(true)
-            }}
+            onClick={() =>
+              runOrAskAdmin(() => {
+                setPickerQuery(
+                  [trip.city, trip.country, 'travel photography']
+                    .filter(Boolean)
+                    .join(' '),
+                )
+                setPickerOpen(true)
+              })
+            }
             className="rounded-full border border-sea/30 px-5 py-2.5 text-sm font-medium text-sea-deep"
           >
             Hero 사진 고르기
           </button>
           <button
             type="button"
-            onClick={() => void handleCaptions()}
+            onClick={() => runOrAskAdmin(() => void handleCaptions())}
             disabled={captionBusy || dayPhotos.length === 0}
             className="rounded-full border border-sea/30 px-5 py-2.5 text-sm font-medium text-sea-deep disabled:opacity-60"
           >
             {captionBusy ? '캡션 생성 중…' : '사진 캡션 생성'}
           </button>
         </div>
+
+        {!isAdmin ? (
+          <p className="text-sm text-ink-muted">
+            글쓰기·AI·Unsplash는 관리자 인증 후 사용할 수 있습니다. 상단의
+            「글쓰기 인증」을 이용하세요.
+          </p>
+        ) : null}
 
         {unsplashMeta ? (
           <p className="text-sm text-ink-muted">
@@ -411,6 +422,7 @@ export function StoryEditorPage() {
         onClose={() => setPickerOpen(false)}
         onApply={applyHero}
       />
+      {gateModal}
     </article>
   )
 }
